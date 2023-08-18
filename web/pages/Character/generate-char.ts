@@ -115,9 +115,9 @@ First Name: [firstname | words=2 | tokens=25]
 
 Description of character: [description | tokens=200]
 
-Scenario: [scenario | tokens = 200]
+Scenario: [scenario | tokens=200]
 
-[firstname] greeting message: [greeting | tokens=100]
+[firstname]'s first message in the conversation: [greeting | tokens=100]
 
 Personality: [personality | tokens=100]
 

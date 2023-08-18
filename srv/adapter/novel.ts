@@ -2,8 +2,7 @@ import needle from 'needle'
 import { decryptText } from '../db/util'
 import { sanitise, sanitiseAndTrim, trimResponseV2 } from '../api/chat/common'
 import { badWordIds, clioBadWordsId, penaltyWhitelist } from './novel-bad-words'
-import { ModelAdapter } from './type'
-import { AppSchema } from '../../common/types/schema'
+import { AdapterProps, ModelAdapter } from './type'
 import { NOVEL_MODELS } from '/common/adapters'
 import { requestStream } from './stream'
 import { AppLog } from '../logger'
@@ -49,16 +48,8 @@ const NEW_PARAMS: Record<string, boolean> = {
   [NOVEL_MODELS.kayra_v1]: true,
 }
 
-export const handleNovel: ModelAdapter = async function* ({
-  char,
-  members,
-  user,
-  prompt,
-  mappedSettings,
-  guest,
-  log,
-  ...opts
-}) {
+export const handleNovel: ModelAdapter = async function* (opts) {
+  const { members, user, prompt, mappedSettings, guest, log } = opts
   if (!user.novelApiKey) {
     yield { error: 'Novel API key not set' }
     return
@@ -71,7 +62,7 @@ export const handleNovel: ModelAdapter = async function* ({
   const body = {
     model,
     input: processedPrompt,
-    parameters: NEW_PARAMS[model] ? getModernParams(opts.gen) : { ...base, ...mappedSettings },
+    parameters: NEW_PARAMS[model] ? getModernParams(opts) : { ...base, ...mappedSettings },
   }
 
   if (opts.kind === 'plain') {
@@ -80,20 +71,7 @@ export const handleNovel: ModelAdapter = async function* ({
   } else {
     const { encode } = getEncoder('novel', model)
     const stops: Array<number[]> = []
-    const biases: any[] = [
-      // {
-      //   bias: -0.1,
-      //   ensure_sequence_finish: false,
-      //   generate_once: false,
-      //   sequence: encode('***'),
-      // },
-      // {
-      //   bias: -0.1,
-      //   ensure_sequence_finish: false,
-      //   generate_once: false,
-      //   sequence: encode('⁂'),
-      // },
-    ]
+    const biases: any[] = body.parameters.logit_biases || []
 
     for (const { bias, seq } of opts.gen.phraseBias || []) {
       biases.push({
@@ -190,7 +168,15 @@ export const handleNovel: ModelAdapter = async function* ({
   yield trimmed || parsed
 }
 
-function getModernParams(gen: Partial<AppSchema.GenSettings>) {
+function getModernParams({
+  kind,
+  gen,
+  characters,
+  impersonate,
+  members,
+  replyAs,
+  sender,
+}: AdapterProps) {
   const module = gen.temporary?.module || 'vanilla'
 
   const payload: any = {
@@ -218,7 +204,44 @@ function getModernParams(gen: Partial<AppSchema.GenSettings>) {
     repetition_penalty_whitelist: penaltyWhitelist,
     top_g: gen.topG,
     mirostat_tau: gen.mirostatTau,
-    mirotsat_lr: gen.mirostatLR,
+    mirotstat_lr: gen.mirostatLR,
+    logit_biases: [],
+  }
+  if (kind === 'continue') {
+    const { encode } = getEncoder('novel', gen.novelModel || NOVEL_MODELS.clio_v1)
+    const seen = new Set<string>()
+
+    const chars = Object.values(characters || {})
+    if (impersonate) chars.push(impersonate)
+
+    for (const char of chars) {
+      if (char.name === replyAs.name) continue
+      if (seen.has(char.name)) continue
+      seen.add(char.name)
+      payload.bad_words_ids.push('\n' + encode(char.name + ':'))
+      // payload.logit_biases.push({
+      //   bias: -0.1,
+      //   ensure_sequence_finish: false,
+      //   generate_once: true,
+      //   sequence: encode(char.name + ':'),
+      // })
+    }
+
+    const profiles = members.concat(sender)
+    for (const char of profiles) {
+      if (char.handle === replyAs.name) continue
+      if (seen.has(char.handle)) continue
+      seen.add(char.handle)
+      payload.bad_words_ids.push(encode('\n' + char.handle + ':'))
+      // payload.logit_biases.push({
+      //   bias: -0.1,
+      //   ensure_sequence_finish: false,
+      //   generate_once: true,
+      //   sequence: encode(char.handle + ':'),
+      // })
+    }
+
+    console.log('Biased against', Array.from(seen.values()).join(', '))
   }
 
   if (gen.cfgScale) {

@@ -516,7 +516,9 @@ function createPostPrompt(
   >
 ) {
   const post = []
-  post.push(`${opts.replyAs.name}:`)
+  if (opts.kind !== 'continue') {
+    post.push(`${opts.replyAs.name}:`)
+  }
   return post
 }
 
