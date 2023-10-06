@@ -1,7 +1,6 @@
 import 'module-alias/register'
 import { prepareTokenizers } from './tokenize'
 import lt from 'localtunnel'
-import * as os from 'os'
 import throng from 'throng'
 import { initMessageBus } from './api/ws'
 import { server } from './app'
@@ -9,7 +8,7 @@ import { config } from './config'
 import { store } from './db'
 import { connect, createIndexes } from './db/client'
 import { logger } from './logger'
-import { setupDomain } from './domains'
+import { setupDomain, startManagers } from './domains'
 const pkg = require('../package.json')
 
 export async function start() {
@@ -64,6 +63,7 @@ async function initDb() {
     await setupDomain()
     // Initialise settings if empty
     await store.users.ensureInitialUser()
+    await startManagers()
   }
 }
 
@@ -77,11 +77,11 @@ async function startWorker(id?: number) {
 }
 
 if (config.clustering) {
-  logger.info('Using clustering')
+  logger.info(`Using clustering. Workers: ${config.workers}`)
   throng({
     worker: startWorker,
     lifetime: Infinity,
-    count: os.cpus().length,
+    count: config.workers,
     grace: 2000,
     signals: ['SIGTERM', 'SIGINT'],
   })

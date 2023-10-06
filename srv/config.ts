@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { v4 } from 'uuid'
 import { ADAPTER_LABELS, AIAdapter } from '../common/adapters'
+import { cpus } from 'os'
 
 export type CustomSettings = {
   baseEndTokens?: string[]
@@ -48,6 +49,7 @@ if (!process.env.JWT_SECRET) {
 
 export const config = {
   clustering: !!env('CLUSTERING', ''),
+  workers: +env('WORKERS', cpus().length.toString()),
   auth: {
     inferenceKey: env('INFERENCE_KEY', ''),
     urls: env('AUTH_URLS', 'https://chara.cards,https://dev.chara.cards')

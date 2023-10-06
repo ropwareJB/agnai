@@ -78,4 +78,7 @@ export async function createIndexes() {
   await db('apikey').createIndex({ code: 1 }, { name: 'apikey_code' })
   await db('chat-tree').createIndex({ chatId: 1 }, { name: 'chat-trees_chatId' })
   await db('prompt-template').createIndex({ userId: 1 }, { name: 'prompt-templates_userId' })
+  await getDb()
+    .collection('evtstore-lock')
+    .createIndex({ id: 1 }, { name: 'evt-manager-lock', unique: true })
 }
