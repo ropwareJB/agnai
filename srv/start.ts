@@ -1,3 +1,4 @@
+import cluster from 'cluster'
 import 'module-alias/register'
 import { prepareTokenizers } from './tokenize'
 import lt from 'localtunnel'
@@ -76,12 +77,12 @@ async function startWorker(id?: number) {
   })
 }
 
-if (config.clustering) {
+if (config.clustering && cluster.isPrimary) {
   const count =
     !isNaN(config.clusterWorkers) && config.clusterWorkers > 0
       ? config.clusterWorkers
       : os.cpus().length
-  logger.info('Using clustering')
+  logger.info(`Using clustering (${count})`)
   throng({
     worker: startWorker,
     lifetime: Infinity,
