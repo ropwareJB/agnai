@@ -405,7 +405,7 @@ function getEntities(holder: IterableHolder, opts: TemplateOpts) {
     case 'bots':
       return Object.values(opts.characters || {}).filter((b) => {
         if (!b) return false
-        if (b._id === (opts.replyAs || opts.char)._id) return false
+        if (b._id === opts.replyAs?._id) return false
         if (b.deletedAt) return false
 
         // Exclude temp characters that have been disabled/removed
@@ -415,8 +415,10 @@ function getEntities(holder: IterableHolder, opts: TemplateOpts) {
         if (!b._id.startsWith('temp-') && !opts.chat.characters?.[b._id]) return false
         return true
       })
+
     case 'chat_embed':
       return opts.parts?.chatEmbeds || []
+
     case 'history':
     default:
       return opts.lines || []
